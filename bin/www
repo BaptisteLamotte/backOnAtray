@@ -5,7 +5,7 @@
  */
 
 var app = require('../app');
-var debug = require('debug')('backmobile:server');
+var debug = require('debug')('backonatray:server');
 var http = require('http');
 
 /**
@@ -21,6 +21,74 @@ app.set('port', port);
 
 var server = http.createServer(app);
 
+
+
+var chatRoomModel = require('../model/chatRoom')
+var talentModel = require('../model/talents')
+var restaurantModel = require('../model/restaurants')
+var io = require('socket.io')(server); 
+
+io.on('connection', async function(socket){
+  console.log('user has join')
+
+  socket.on('join', ({name, room}, )=>{
+    console.log('name', name)
+    console.log('room', room)
+    var user = {id: socket.id, name , room}
+    console.log('user.name uer.room',user.name, user.room)
+    socket.join(user.room)
+  }) 
+
+  socket.on('sendMessage', async (message )=>{
+    
+
+    console.log('je passe ici')
+    
+    var roomId = message.room
+    var chatRoomToFind = await chatRoomModel.findById(roomId)
+    let expediteur = message.name
+    let destinataire = message.desti
+
+    var expeToCheck = await talentModel.findOne({token:message.name})
+    
+    if(expeToCheck){
+       expediteur = expeToCheck.firstName
+       
+    }
+    else{
+     
+      expeToCheckk = await restaurantModel.findOne({token:message.name})
+      console.log('expetocheck',expeToCheckk)
+     expediteur = expeToCheckk.name
+    }
+    
+    var destiToCheck = await talentModel.findOne({token : message.desti})
+    if(destiToCheck){
+       destinataire = destiToCheck.firstName
+    }else{
+      destiToCheck = await restaurantModel.findOne({token:message.desti})
+       destinataire = destiToCheck.name
+    }
+
+    socket.to(message.room).broadcast.emit('message',{message : message.message, name : expediteur, destinataire : destinataire, tokenExpe : message })
+
+   //console.log(chatRoomToFind)
+    // var destinataire = await userTestModel.findOne({name : message.destinataire})
+   //var destinataire = await userTestModel.findOne({name : message.destinataire})
+   //chatRoomToFind.message.push({content : message.message, expediteur : message.expediteur, destinataire : message.destinataire})
+   chatRoomToFind.message.push({content: message.message, expediteur : expediteur, destinataire : destinataire, tokenExpe: message.name, tokenDesti : message.desti})
+   await chatRoomToFind.save()
+  
+  })
+
+
+  socket.on('disco', ()=>{
+    console.log('user had left')
+  })
+     
+   
+  });
+  
 /**
  * Listen on provided port, on all network interfaces.
  */
